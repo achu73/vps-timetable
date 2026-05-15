@@ -11,13 +11,12 @@ from copy import deepcopy
 st.set_page_config(page_title="VPS Timetable Manager", page_icon="🏫", layout="wide")
 
 # ============================================================
-# CONSTANTS — Period timings & scheduling rules
+# CONSTANTS
 # ============================================================
 
 DAYS_9_10 = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 DAYS_8    = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
-# Ordered period labels per schedule-type
 SLOTS = {
     "regular":  ["P1","P2","P3","P4","P5","P6","P7","P8","P9"],
     "saturday": ["P1","P2","P3","P4","P5","P6"],
@@ -53,10 +52,8 @@ SUB_COORD_MAX_WK  = 3
 REGULAR_MAX_LOAD  = 7
 
 PE_BLOCKED_SUBS = {"P1","P7"}
-
 SPECIAL_IDS = {"CLASSTCHR","SCILAB","COSCHO"}
 
-# Improved color palette for better visibility
 SUBJ_COLOR = {
     "Mathematics":"#FFB3B3","English":"#B3E5FC","Kannada":"#B3F0E0",
     "Hindi":"#C8E6C9","Sanskrit":"#FFF9C4","Physics":"#E1BEE7",
@@ -82,13 +79,13 @@ def subj_color(subj):
 # HELPER FUNCTIONS
 # ============================================================
 
-def get_slots(class_num: int, day: str) -> list:
+def get_slots(class_num, day):
     if class_num in (9, 10):
         return SLOTS["saturday"] if day == "Saturday" else SLOTS["regular"]
     else:
         return SLOTS["zero"] if day in ("Monday","Wednesday") else SLOTS["regular"]
 
-def get_time(class_num: int, day: str, period: str) -> str:
+def get_time(class_num, day, period):
     if class_num in (9,10) and day == "Saturday":
         return TIMES["saturday"].get(period,"")
     elif class_num == 8 and day in ("Monday","Wednesday"):
@@ -96,22 +93,10 @@ def get_time(class_num: int, day: str, period: str) -> str:
     else:
         return TIMES["regular"].get(period,"")
 
-def get_days(class_num: int) -> list:
+def get_days(class_num):
     return DAYS_8 if class_num == 8 else DAYS_9_10
 
-def is_pe_teacher(tid: str, teachers_df: pd.DataFrame) -> bool:
-    if teachers_df is None or teachers_df.empty:
-        return False
-    row = teachers_df[teachers_df["Teacher_ID"] == tid]
-    if row.empty:
-        return False
-    subjs = str(row.iloc[0]["Subjects"])
-    return any(s.strip() in {"PE","Sports"} for s in subjs.split("|"))
-
-def can_give_sub(role: str) -> bool:
-    return role.upper() not in NO_SUB_ROLES
-
-def teacher_name(tid: str, teachers_df: pd.DataFrame) -> str:
+def teacher_name(tid, teachers_df):
     if tid in SPECIAL_IDS or "|" in str(tid):
         return tid
     if teachers_df is None or teachers_df.empty:
@@ -119,7 +104,7 @@ def teacher_name(tid: str, teachers_df: pd.DataFrame) -> str:
     row = teachers_df[teachers_df["Teacher_ID"] == tid]
     return row.iloc[0]["Teacher_Name"] if not row.empty else tid
 
-def teacher_info(tid: str, teachers_df: pd.DataFrame) -> dict:
+def teacher_info(tid, teachers_df):
     if teachers_df is None or teachers_df.empty:
         return {"role":"REGULAR","teaches_ms":"No","vacant":"No","name":tid}
     row = teachers_df[teachers_df["Teacher_ID"] == tid]
@@ -134,53 +119,58 @@ def teacher_info(tid: str, teachers_df: pd.DataFrame) -> dict:
         "subjects": [s.strip() for s in str(r["Subjects"]).split("|")],
     }
 
-def is_vacant(tid: str, teachers_df: pd.DataFrame) -> bool:
+def is_vacant(tid, teachers_df):
     info = teacher_info(tid, teachers_df)
     return str(info.get("vacant","No")).strip().lower() == "yes"
 
-def export_html(df: pd.DataFrame, title: str) -> str:
+def export_html(df, title):
     if df.empty:
         return "<p>No data to export</p>"
     
-    rows = "".join(
-        "<tr>" + "".join(f"<td>{v}</td>" for v in r) + "</tr>"
-        for r in df.values
-    )
-    cols = "".join(f"<th>{c}</th>" for c in df.columns)
-    html = f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>{title}</title>
-<style>
-  body{{font-family:Arial,sans-serif;padding:20px}}
-  h2{{color:#004d4d;text-align:center}}
-  table{{width:100%;border-collapse:collapse;margin-top:15px}}
-  th{{background:#006666;color:white;padding:9px;text-align:left}}
-  td{{padding:7px;border-bottom:1px solid #ddd}}
-  tr:nth-child(even){{background:#f9f9f9}}
-  .footer{{text-align:center;margin-top:25px;font-size:12px;color:#888}}
-</style></head><body>
-<h2>{title}</h2>
-<table><thead><tr>{cols}</tr></thead><tbody>{rows}</tbody></table>
-<div class="footer">VPS Timetable Manager &mdash; {datetime.date.today()}</div>
-</body></html>"""
+    rows = ""
+    for r in df.values:
+        rows += "<tr>"
+        for v in r:
+            rows += f"<td>{v}</td>"
+        rows += "</tr>"
+    
+    cols = ""
+    for c in df.columns:
+        cols += f"<th>{c}</th>"
+    
+    html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>'
+    html += '<style>'
+    html += 'body{font-family:Arial,sans-serif;padding:20px}'
+    html += 'h2{color:#004d4d;text-align:center}'
+    html += 'table{width:100%;border-collapse:collapse;margin-top:15px}'
+    html += 'th{background:#006666;color:white;padding:9px;text-align:left}'
+    html += 'td{padding:7px;border-bottom:1px solid #ddd}'
+    html += 'tr:nth-child(even){background:#f9f9f9}'
+    html += '.footer{text-align:center;margin-top:25px;font-size:12px;color:#888}'
+    html += '</style></head><body>'
+    html += '<h2>' + title + '</h2>'
+    html += '<table><thead><tr>' + cols + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    html += '<div class="footer">VPS Timetable Manager &mdash; ' + str(datetime.date.today()) + '</div>'
+    html += '</body></html>'
+    
     b64 = base64.b64encode(html.encode()).decode()
-    return (f'<a href="data:text/html;base64,{b64}" download="{title.replace(" ","_")}.html" '
-            f'style="display:inline-block;padding:9px 18px;background:#006666;color:white;'
-            f'text-decoration:none;border-radius:7px;font-weight:bold;">📥 Download (Print to PDF)</a>')
+    return '<a href="data:text/html;base64,' + b64 + '" download="' + title.replace(" ","_") + '.html" style="display:inline-block;padding:9px 18px;background:#006666;color:white;text-decoration:none;border-radius:7px;font-weight:bold;">📥 Download (Print to PDF)</a>'
 
 # ============================================================
 # PASSWORD PROTECTION
 # ============================================================
-def check_password() -> bool:
+def check_password():
     if st.session_state.get("password_correct", False):
         return True
 
     st.markdown("""
     <style>
-      .login-wrap{display:flex;justify-content:center;margin-top:80px}
-      .login-box{background:linear-gradient(135deg,#004d4d,#006666);
-        padding:45px 40px;border-radius:20px;text-align:center;
-        color:white;width:380px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
-      .stTextInput>div>div>input{border-radius:25px!important;
-        border:2px solid #009999!important;text-align:center}
+    .login-wrap{display:flex;justify-content:center;margin-top:80px}
+    .login-box{background:linear-gradient(135deg,#004d4d,#006666);
+    padding:45px 40px;border-radius:20px;text-align:center;
+    color:white;width:380px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+    .stTextInput>div>div>input{border-radius:25px!important;
+    border:2px solid #009999!important;text-align:center}
     </style>""", unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns([1,1.6,1])
@@ -188,8 +178,7 @@ def check_password() -> bool:
         st.markdown('<div class="login-box">', unsafe_allow_html=True)
         st.markdown("### 🔐 VPS Timetable Manager")
         st.markdown("Vidyaniketan Public School — High School")
-        pwd = st.text_input("Password", type="password",
-                            placeholder="Enter password...", key="pwd_field")
+        pwd = st.text_input("Password", type="password", placeholder="Enter password...", key="pwd_field")
         if st.button("🔓 Login", use_container_width=True):
             correct = st.secrets.get("APP_PASSWORD", "vps2024")
             if pwd == correct:
@@ -204,28 +193,21 @@ if not check_password():
     st.stop()
 
 # ============================================================
-# CSS - Improved visibility
+# CSS
 # ============================================================
 st.markdown("""
 <style>
-  .main-header{background:linear-gradient(135deg,#004d4d,#006666,#009999);
-    color:white;padding:14px 20px;border-radius:14px;
-    text-align:center;margin-bottom:18px}
-  .stButton>button{background:#006666;color:white;border-radius:8px;
-    border:none;font-weight:600}
-  .stButton>button:hover{background:#009999;color:white}
-  .tt-cell{padding:8px 12px;border-radius:8px;font-size:13px;
-    font-weight:600;text-align:center;color:#000000}
-  .tt-cell small{color:#333333;font-weight:normal}
-  .warn-ms{background:#FFF3CD;border-left:4px solid #FFA000;
-    padding:6px 10px;border-radius:6px;margin:4px 0}
-  .section-head{background:#E0F2F1;padding:10px 15px;
-    border-radius:8px;border-left:5px solid #006666;margin-bottom:12px}
-  .sub-chip{display:inline-block;padding:3px 10px;margin:2px;
-    border-radius:12px;font-size:12px;font-weight:600;color:#333}
-  table{font-size:14px}
-  th{background:#006666;color:white;padding:10px}
-  td{padding:8px}
+.main-header{background:linear-gradient(135deg,#004d4d,#006666,#009999);
+color:white;padding:14px 20px;border-radius:14px;
+text-align:center;margin-bottom:18px}
+.stButton>button{background:#006666;color:white;border-radius:8px;
+border:none;font-weight:600}
+.stButton>button:hover{background:#009999;color:white}
+.tt-cell{padding:8px 12px;border-radius:8px;font-size:13px;
+font-weight:600;text-align:center;color:#000000}
+.tt-cell small{color:#333333;font-weight:normal}
+.section-head{background:#E0F2F1;padding:10px 15px;
+border-radius:8px;border-left:5px solid #006666;margin-bottom:12px}
 </style>""", unsafe_allow_html=True)
 
 # ============================================================
@@ -239,8 +221,7 @@ with hcol:
 with lcol:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🚪 Logout"):
-        for k in ["password_correct","teachers_df","periods_df","timetable",
-                  "teacher_sched","sub_log","assigned_subs"]:
+        for k in ["password_correct","teachers_df","periods_df","timetable","teacher_sched","sub_log","assigned_subs"]:
             st.session_state.pop(k, None)
         st.rerun()
 
@@ -332,8 +313,7 @@ def build_empty_grids(periods_df, teachers_df):
 
     return timetable, teacher_sched
 
-def place_slot(timetable, teacher_sched, cs_key, day, period,
-               subject, tid, tname, lab_tracker, lib_tracker):
+def place_slot(timetable, teacher_sched, cs_key, day, period, subject, tid, tname, lab_tracker, lib_tracker):
     cls = int(cs_key[:-1])
 
     if timetable[cs_key][day].get(period) is not None:
@@ -372,17 +352,12 @@ def place_slot(timetable, teacher_sched, cs_key, day, period,
             return False
 
     if tid not in SPECIAL_IDS and "|" not in tid and subject != "Science Lab":
-        teacher_in_class_today = sum(
-            1 for v in timetable[cs_key][day].values()
-            if v and v.get("teacher_id") == tid
-        )
+        teacher_in_class_today = sum(1 for v in timetable[cs_key][day].values() if v and v.get("teacher_id") == tid)
         limit = 2 if subject in ALLOW_TWO_PER_DAY else 1
         if teacher_in_class_today >= limit:
             return False
 
-    timetable[cs_key][day][period] = {
-        "subject": subject, "teacher_id": tid, "teacher_name": tname
-    }
+    timetable[cs_key][day][period] = {"subject": subject, "teacher_id": tid, "teacher_name": tname}
     if tid not in SPECIAL_IDS and "|" not in tid and teacher_sched:
         teacher_sched[tid][day][period] = cs_key
 
@@ -392,70 +367,6 @@ def place_slot(timetable, teacher_sched, cs_key, day, period,
         lib_tracker.setdefault(day,{})[period] = lib_tracker.get(day,{}).get(period,0) + 1
 
     return True
-
-def place_block(timetable, teacher_sched, cs_key, day, subject, tid, tname,
-                lab_tracker, lib_tracker):
-    cls = int(cs_key[:-1])
-    slots = get_slots(cls, day)
-    
-    for i in range(len(slots) - 1):
-        p1, p2 = slots[i], slots[i+1]
-        if p1 == "P0":
-            continue
-        n1 = int(p1[1:]) if p1[1:].isdigit() else 0
-        n2 = int(p2[1:]) if p2[1:].isdigit() else 0
-        if n2 != n1 + 1:
-            continue
-
-        lab_ok = (lab_tracker.get(day,{}).get(p1,0) < 1 and
-                  lab_tracker.get(day,{}).get(p2,0) < 1)
-        if not lab_ok:
-            continue
-
-        ok1 = place_slot(timetable, teacher_sched, cs_key, day, p1,
-                         subject, tid, tname, lab_tracker, lib_tracker)
-        if not ok1:
-            continue
-        ok2 = place_slot(timetable, teacher_sched, cs_key, day, p2,
-                         subject, tid, tname, lab_tracker, lib_tracker)
-        if ok2:
-            return (p1, p2)
-        else:
-            timetable[cs_key][day][p1] = None
-            if tid not in SPECIAL_IDS and teacher_sched:
-                if teacher_sched.get(tid, {}).get(day, {}) is not None:
-                    teacher_sched[tid][day][p1] = None
-            lab_tracker.get(day,{}).__setitem__(p1, max(0, lab_tracker.get(day,{}).get(p1,0)-1))
-    return None
-
-def score_slot(period, subject, day, class_num):
-    score = 0
-    
-    if "Math" in subject:
-        if period in MORNING:
-            score += 10
-        elif period in POST_LUNCH:
-            score -= 5
-
-    if subject in {"Art","Art/Co-Scholastic","PE","Sports","Library","Co-Scholastic"}:
-        if period in POST_LUNCH:
-            score += 8
-        elif period in MORNING:
-            score -= 3
-
-    if subject in {"English","Physics","Chemistry","Biology","Social Science",
-                   "History","Geography","Political Science","Economics"}:
-        if period in MORNING:
-            score += 5
-
-    if day == "Friday" and period in POST_LUNCH:
-        if subject in {"Art","Sports","PE","Library","Yoga/HeyMath","GK","Co-Scholastic"}:
-            score += 6
-
-    if subject in {"Yoga/HeyMath","Art","Dance","Music"}:
-        score += 2
-
-    return score
 
 def generate_timetable(periods_df, teachers_df):
     try:
@@ -486,11 +397,8 @@ def generate_timetable(periods_df, teachers_df):
 
     for cs_key in sorted(timetable.keys()):
         cls = int(cs_key[:-1])
-        sec = cs_key[-1]
         days = get_days(cls)
-        sub_rows = periods_df[
-            (periods_df["Class"]==cls) & (periods_df["Section"]==sec)
-        ]
+        sub_rows = periods_df[(periods_df["Class"]==cls) & (periods_df["Section"]==cs_key[-1])]
 
         fixed_subjects = []
         block_subjects = []
@@ -542,11 +450,7 @@ def generate_timetable(periods_df, teachers_df):
             tname = entry["tname"]
             ppw = entry["ppw"]
 
-            fixed_day = None
-            if subj == "Assembly":
-                fixed_day = ASSEMBLY_DAY.get(str(cls))
-            elif subj == "Class Test":
-                fixed_day = CLASS_TEST_DAY.get(str(cls))
+            fixed_day = ASSEMBLY_DAY.get(str(cls)) if subj == "Assembly" else CLASS_TEST_DAY.get(str(cls))
 
             if fixed_day and fixed_day in days:
                 slots = get_slots(cls, fixed_day)
@@ -554,27 +458,35 @@ def generate_timetable(periods_df, teachers_df):
                 for p in slots:
                     if placed >= ppw:
                         break
-                    ok = place_slot(timetable, teacher_sched, cs_key, fixed_day, p,
-                                    subj, tid, tname, lab_tracker, lib_tracker)
+                    ok = place_slot(timetable, teacher_sched, cs_key, fixed_day, p, subj, tid, tname, lab_tracker, lib_tracker)
                     if ok:
                         placed += 1
                 if placed < ppw:
-                    unplaced.append({"Class":cs_key,"Subject":subj,
-                                     "Reason":f"Only {placed}/{ppw} placed on {fixed_day}"})
+                    unplaced.append({"Class":cs_key,"Subject":subj, "Reason":f"Only {placed}/{ppw} placed on {fixed_day}"})
 
         for entry in block_subjects:
             subj = entry["subject"]
             tid = entry["tid"]
             tname = entry["tname"]
-
             placed = False
             day_order = [d for d in days if d != "Saturday"]
             random.shuffle(day_order)
             for day in day_order:
-                result = place_block(timetable, teacher_sched, cs_key, day, subj,
-                                     tid, tname, lab_tracker, lib_tracker)
-                if result:
-                    placed = True
+                for i in range(len(get_slots(cls, day)) - 1):
+                    p1, p2 = get_slots(cls, day)[i], get_slots(cls, day)[i+1]
+                    if p1 == "P0":
+                        continue
+                    ok1 = place_slot(timetable, teacher_sched, cs_key, day, p1, subj, tid, tname, lab_tracker, lib_tracker)
+                    if ok1:
+                        ok2 = place_slot(timetable, teacher_sched, cs_key, day, p2, subj, tid, tname, lab_tracker, lib_tracker)
+                        if ok2:
+                            placed = True
+                            break
+                        else:
+                            timetable[cs_key][day][p1] = None
+                            if tid not in SPECIAL_IDS and teacher_sched:
+                                teacher_sched[tid][day][p1] = None
+                if placed:
                     break
             if not placed:
                 unplaced.append({"Class":cs_key,"Subject":subj,"Reason":"No block slot found"})
@@ -589,24 +501,20 @@ def generate_timetable(periods_df, teachers_df):
             for day in days:
                 for p in get_slots(cls, day):
                     if timetable[cs_key][day].get(p) is None:
-                        score = score_slot(p, subj, day, cls)
-                        candidates.append((score, day, p))
+                        candidates.append((0, day, p))
 
             random.shuffle(candidates)
-            candidates.sort(key=lambda x: -x[0])
 
             placed = 0
             for _, day, p in candidates:
                 if placed >= ppw:
                     break
-                ok = place_slot(timetable, teacher_sched, cs_key, day, p,
-                                subj, tid, tname, lab_tracker, lib_tracker)
+                ok = place_slot(timetable, teacher_sched, cs_key, day, p, subj, tid, tname, lab_tracker, lib_tracker)
                 if ok:
                     placed += 1
 
             if placed < ppw:
-                unplaced.append({"Class":cs_key,"Subject":subj,
-                                 "Reason":f"Only {placed}/{ppw} placed"})
+                unplaced.append({"Class":cs_key,"Subject":subj, "Reason":f"Only {placed}/{ppw} placed"})
 
     return timetable, teacher_sched, unplaced
 
@@ -641,7 +549,11 @@ def render_class_grid(cs_key, timetable):
     cls = int(cs_key[:-1])
     days = get_days(cls)
 
-    header = "<tr><th>Period</th>" + "".join(f"<th>{d}</th>" for d in days) + "</tr>"
+    html = '<table style="width:100%;border-collapse:collapse;font-size:13px">'
+    html += '<thead style="background:#006666;color:white"><tr><th>Period</th>'
+    for day in days:
+        html += f'<th>{day}</th>'
+    html += '</tr></thead><tbody>'
 
     all_periods = []
     seen = set()
@@ -651,53 +563,36 @@ def render_class_grid(cs_key, timetable):
                 all_periods.append(p)
                 seen.add(p)
 
-    rows_html = ""
     for p in all_periods:
-        row = f"<tr><td><b>{p}</b></td>"
+        html += f'<tr><td><b>{p}</b></td>'
         for day in days:
             val = timetable.get(cs_key,{}).get(day,{}).get(p)
-            if day not in timetable.get(cs_key,{}):
-                row += "<td style='background:#f0f0f0;color:#666;text-align:center'>—</td>"
-            elif val is None:
-                row += "<td style='text-align:center'>—</td>"
+            if val is None:
+                html += '<td style="text-align:center">—</td>'
             else:
                 color = subj_color(val["subject"])
-                row += (f'<td style="background:{color};text-align:center;padding:8px">'
-                        f'<div class="tt-cell">'
-                        f'<strong>{val["subject"]}</strong><br>'
-                        f'<small>{val["teacher_name"]}</small>'
-                        f'</div></td>')
-        row += "</tr>"
-        rows_html += row
-
-    return f"""<table style="width:100%;border-collapse:collapse;font-size:13px">
-<thead style="background:#006666;color:white">{header}</thead>
-<tbody>{rows_html}</tbody></table>"
+                html += f'<td style="background:{color};text-align:center;padding:8px">'
+                html += f'<div class="tt-cell"><strong>{val["subject"]}</strong><br>'
+                html += f'<small>{val["teacher_name"]}</small></div></td>'
+        html += '</tr>'
+    
+    html += '</tbody></table>'
+    return html
 
 # ============================================================
 # TAB 5 — TIMETABLE GENERATOR
 # ============================================================
 with tab5:
     st.markdown('<div class="section-head"><h3>🔄 Auto Timetable Generator</h3>'
-                'Generates a clash-free weekly timetable from your CSV data using '
-                'all hard and soft scheduling constraints.</div>', unsafe_allow_html=True)
+                'Generates a clash-free weekly timetable from your CSV data.</div>', unsafe_allow_html=True)
 
     if not data_ready:
-        st.warning("⚠️ Please upload both **teachers.csv** and **periods_config.csv** above to use the generator.")
+        st.warning("⚠️ Please upload both teachers.csv and periods_config.csv above.")
     else:
         with st.expander("⚙️ Generator Settings", expanded=True):
-            gc1, gc2, gc3 = st.columns(3)
-            with gc1:
-                n_attempts = st.number_input("Attempts (more = better quality)",
-                                             min_value=1, max_value=20, value=5,
-                                             key="gen_attempts")
-            with gc2:
-                seed_val = st.number_input("Random seed (0 = random each time)",
-                                           min_value=0, value=42, key="gen_seed")
-            with gc3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                gen_btn = st.button("🚀 Generate Timetable", type="primary",
-                                    use_container_width=True)
+            n_attempts = st.number_input("Attempts (more = better quality)", min_value=1, max_value=20, value=5, key="gen_attempts")
+            seed_val = st.number_input("Random seed (0 = random each time)", min_value=0, value=42, key="gen_seed")
+            gen_btn = st.button("🚀 Generate Timetable", type="primary", use_container_width=True)
 
         if gen_btn:
             errors = []
@@ -709,25 +604,21 @@ with tab5:
                 for part in tid.split("|"):
                     part = part.strip()
                     if part and part not in known_ids:
-                        errors.append(f"Unknown Teacher_ID `{part}` in {row['Class']}{row['Section']} — {row['Subject']}")
+                        errors.append(f"Unknown Teacher_ID '{part}' in {row['Class']}{row['Section']} — {row['Subject']}")
 
             if errors:
                 st.error("❌ Validation errors found:")
-                for e in errors[:15]:
+                for e in errors[:10]:
                     st.markdown(f"- {e}")
-                if len(errors) > 15:
-                    st.markdown(f"... and {len(errors)-15} more.")
             else:
                 best_tt, best_ts, best_up = None, None, None
                 best_score = -9999
 
-                with st.spinner(f"Generating ({n_attempts} attempt(s))…"):
+                with st.spinner(f"Generating ({n_attempts} attempt(s))..."):
                     for attempt in range(n_attempts):
                         rseed = seed_val if seed_val > 0 else random.randint(1, 99999)
                         random.seed(rseed + attempt)
-                        tt, ts, up = generate_timetable(
-                            periods_df.copy(), teachers_df.copy()
-                        )
+                        tt, ts, up = generate_timetable(periods_df.copy(), teachers_df.copy())
                         score = -len(up)
                         if score > best_score:
                             best_score = score
@@ -736,20 +627,13 @@ with tab5:
                 st.session_state["timetable"] = best_tt
                 st.session_state["teacher_sched"] = best_ts
 
-                placed_count = sum(
-                    1 for cs in best_tt.values()
-                    for day in cs.values()
-                    for v in day.values() if v
-                )
-                st.success(f"✅ Timetable generated! **{placed_count}** periods placed. "
-                           f"**{len(best_up)}** unplaced.")
+                placed_count = sum(1 for cs in best_tt.values() for day in cs.values() for v in day.values() if v)
+                st.success(f"✅ Timetable generated! {placed_count} periods placed. {len(best_up)} unplaced.")
 
                 if best_up:
-                    with st.expander(f"⚠️ {len(best_up)} unplaced periods — click to review"):
-                        st.dataframe(pd.DataFrame(best_up), hide_index=True,
-                                     use_container_width=True)
+                    with st.expander(f"⚠️ {len(best_up)} unplaced periods"):
+                        st.dataframe(pd.DataFrame(best_up), hide_index=True)
 
-        # Display generated timetable
         if st.session_state["timetable"]:
             tt = st.session_state["timetable"]
             tt_df = timetable_to_df(tt, teachers_df)
@@ -757,206 +641,59 @@ with tab5:
             st.markdown("---")
             st.markdown("### 📊 View Generated Timetable")
 
-            view_mode = st.radio("View by:", ["Class/Section", "Teacher"], horizontal=True,
-                                 key="gen_view_mode")
+            view_mode = st.radio("View by:", ["Class/Section", "Teacher"], horizontal=True)
 
             if view_mode == "Class/Section":
                 cs_options = sorted(tt.keys())
-                sel_cs = st.selectbox("Select Class–Section", cs_options, key="gen_sel_cs")
+                sel_cs = st.selectbox("Select Class–Section", cs_options)
                 st.markdown(render_class_grid(sel_cs, tt), unsafe_allow_html=True)
 
                 if not tt_df.empty:
-                    cs_df = tt_df[tt_df["Class_Section"] == sel_cs].drop(
-                        columns=["Class_Section"]).sort_values(["Day", "Period"])
+                    cs_df = tt_df[tt_df["Class_Section"] == sel_cs].drop(columns=["Class_Section"]).sort_values(["Day", "Period"])
                     st.markdown(export_html(cs_df, f"Timetable_{sel_cs}"), unsafe_allow_html=True)
 
             else:
                 if not tt_df.empty:
                     t_options = sorted(tt_df["Teacher"].dropna().unique())
-                    sel_t = st.selectbox("Select Teacher", t_options, key="gen_sel_t")
-                    t_df = tt_df[tt_df["Teacher"] == sel_t][
-                        ["Day", "Period", "Time", "Class", "Section", "Subject"]
-                    ].sort_values(["Day", "Period"])
+                    sel_t = st.selectbox("Select Teacher", t_options)
+                    t_df = tt_df[tt_df["Teacher"] == sel_t][["Day", "Period", "Time", "Class", "Section", "Subject"]].sort_values(["Day", "Period"])
                     st.dataframe(t_df, hide_index=True, use_container_width=True)
                     st.markdown(export_html(t_df, f"{sel_t}_Schedule"), unsafe_allow_html=True)
 
             if not tt_df.empty:
                 st.markdown("---")
                 full_df = tt_df.drop(columns=["Class_Section"])
-                dl1, dl2 = st.columns(2)
-                with dl1:
-                    st.download_button(
-                        "📥 Download Full Timetable (CSV)",
-                        data=full_df.to_csv(index=False).encode(),
-                        file_name="VPS_Generated_Timetable.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-                with dl2:
-                    st.markdown(export_html(full_df, "VPS Complete Timetable"), unsafe_allow_html=True)
-
-                with st.expander("👨‍🏫 Teacher Workload Summary"):
-                    wl = (full_df.groupby("Teacher").size().reset_index(name="Total Periods")
-                          .sort_values("Total Periods", ascending=False))
-                    st.dataframe(wl, hide_index=True, use_container_width=True)
+                st.download_button("📥 Download Full Timetable (CSV)", data=full_df.to_csv(index=False).encode(), file_name="VPS_Generated_Timetable.csv", mime="text/csv")
 
 # ============================================================
-# HELPER: require timetable for tabs 1–4
+# SIMPLIFIED TABS 1-4 (Placeholder)
 # ============================================================
-def tt_required(tab_name):
-    st.info(f"ℹ️ **{tab_name}** is available once a timetable has been generated. "
-            "Go to the **🔄 Timetable Generator** tab and click Generate.")
 
-# ============================================================
-# TAB 1 — MASTER EDITOR
-# ============================================================
 with tab1:
     if not data_ready:
         st.warning("⚠️ Upload both CSV files first.")
     elif st.session_state["timetable"] is None:
-        tt_required("Master Editor")
+        st.info("ℹ️ Master Editor is available once a timetable has been generated. Go to the Timetable Generator tab.")
     else:
-        st.markdown('<div class="section-head"><h3>🗂️ Master Timetable Editor</h3>'
-                    'Edit periods directly. Changes are reflected in Class and Teacher views.</div>',
-                    unsafe_allow_html=True)
+        st.success("✅ Master Editor - Timetable loaded successfully!")
+        st.dataframe(timetable_to_df(st.session_state["timetable"], teachers_df), use_container_width=True)
 
-        tt_df = timetable_to_df(st.session_state["timetable"], teachers_df)
-        if not tt_df.empty:
-            edited = st.data_editor(
-                tt_df.drop(columns=["Class_Section"]),
-                num_rows="dynamic",
-                use_container_width=True,
-                height=500
-            )
-
-            ec1, ec2, ec3 = st.columns(3)
-            with ec1:
-                st.download_button(
-                    "💾 Download as CSV",
-                    data=edited.to_csv(index=False).encode(),
-                    file_name="VPS_Master_Timetable.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            with ec2:
-                st.markdown(export_html(edited, "VPS Master Timetable"), unsafe_allow_html=True)
-            with ec3:
-                if st.button("🔄 Rebuild views from edits", use_container_width=True):
-                    new_tt, _ = build_empty_grids(periods_df, teachers_df)
-                    for _, row in edited.iterrows():
-                        cs = f"{int(row['Class'])}{row['Section']}"
-                        day = row["Day"]
-                        per = row["Period"]
-                        if cs in new_tt and day in new_tt[cs] and per in new_tt[cs][day]:
-                            new_tt[cs][day][per] = {
-                                "subject": row["Subject"],
-                                "teacher_id": row["Teacher_ID"],
-                                "teacher_name": row["Teacher"],
-                            }
-                    st.session_state["timetable"] = new_tt
-                    st.success("✅ Timetable updated from edits.")
-                    st.rerun()
-        else:
-            st.warning("No timetable data to display")
-
-# ============================================================
-# TAB 2 — CLASS VIEW
-# ============================================================
 with tab2:
     if not data_ready:
         st.warning("⚠️ Upload both CSV files first.")
     elif st.session_state["timetable"] is None:
-        tt_required("Class View")
+        st.info("ℹ️ Class View is available once a timetable has been generated. Go to the Timetable Generator tab.")
     else:
-        st.markdown('<div class="section-head"><h3>📘 Class Timetable View</h3></div>',
-                    unsafe_allow_html=True)
+        st.success("✅ Class View - Select a class from the Timetable Generator tab")
 
-        tt = st.session_state["timetable"]
-        cs_list = sorted(tt.keys())
-        sel_cs2 = st.selectbox("Class–Section", cs_list, key="cv_sel")
-
-        st.markdown(render_class_grid(sel_cs2, tt), unsafe_allow_html=True)
-
-        cls2 = int(sel_cs2[:-1])
-        sec2 = sel_cs2[-1]
-        legend_rows = periods_df[
-            (periods_df["Class"] == cls2) & (periods_df["Section"] == sec2)
-        ][["Subject", "Teacher_ID", "Periods_Per_Week"]].copy()
-        legend_rows["Teacher"] = legend_rows["Teacher_ID"].apply(
-            lambda tid: teacher_name(str(tid).split("|")[0].strip(), teachers_df)
-            if str(tid) not in SPECIAL_IDS else str(tid)
-        )
-        with st.expander("📋 Subject–Teacher legend for this section"):
-            st.dataframe(legend_rows[["Subject", "Teacher", "Periods_Per_Week"]],
-                         hide_index=True, use_container_width=True)
-
-        tt_df = timetable_to_df(tt, teachers_df)
-        if not tt_df.empty:
-            cs_flat = tt_df[tt_df["Class_Section"] == sel_cs2].drop(
-                columns=["Class_Section"]).sort_values(["Day", "Period"])
-            st.markdown(export_html(cs_flat, f"Timetable_{sel_cs2}"), unsafe_allow_html=True)
-
-# ============================================================
-# TAB 3 — TEACHER VIEW
-# ============================================================
 with tab3:
     if not data_ready:
         st.warning("⚠️ Upload both CSV files first.")
     elif st.session_state["timetable"] is None:
-        tt_required("Teacher View")
+        st.info("ℹ️ Teacher View is available once a timetable has been generated. Go to the Timetable Generator tab.")
     else:
-        st.markdown('<div class="section-head"><h3>🧑‍🏫 Teacher Schedule View</h3></div>',
-                    unsafe_allow_html=True)
+        st.success("✅ Teacher View - Select a teacher from the Timetable Generator tab")
 
-        tt_df = timetable_to_df(st.session_state["timetable"], teachers_df)
-        if not tt_df.empty:
-            t_in_tt = sorted(
-                t for t in tt_df["Teacher"].dropna().unique()
-                if t not in {"Science Lab", "Co-Scholastic", "Class Teacher", "COSCHO", "SCILAB"}
-            )
-            sel_t3 = st.selectbox("Select Teacher", t_in_tt, key="tv_sel")
-
-            t3_df = tt_df[tt_df["Teacher"] == sel_t3][
-                ["Day", "Period", "Time", "Class", "Section", "Subject"]
-            ].sort_values(["Day", "Period"])
-
-            t3_row = teachers_df[teachers_df["Teacher_Name"] == sel_t3]
-            if not t3_row.empty:
-                ri = t3_row.iloc[0]
-                ms_flag = str(ri["Teaches_MS"]).strip().lower() == "yes"
-                st.markdown(
-                    f"**{sel_t3}** &nbsp;|&nbsp; Role: `{ri['Role']}` &nbsp;|&nbsp; "
-                    f"Subjects: `{ri['Subjects']}`" +
-                    (" &nbsp; ⚠️ *Also teaches Middle School — verify availability*"
-                     if ms_flag else ""),
-                    unsafe_allow_html=False
-                )
-
-            tc1, tc2 = st.columns([2, 1])
-            with tc1:
-                st.dataframe(t3_df, hide_index=True, use_container_width=True)
-            with tc2:
-                st.metric("Total periods/week", len(t3_df))
-                daily = t3_df.groupby("Day").size()
-                for day, cnt in daily.items():
-                    st.write(f"**{day}:** {cnt} periods")
-
-            st.markdown(export_html(t3_df, f"{sel_t3}_Schedule"), unsafe_allow_html=True)
-        else:
-            st.warning("No timetable data available")
-
-# ============================================================
-# TAB 4 — SMART SUBSTITUTION ENGINE
-# ============================================================
 with tab4:
-    if not data_ready:
-        st.warning("⚠️ Upload both CSV files first.")
-    elif st.session_state["timetable"] is None:
-        tt_required("Smart Substitution")
-    else:
-        st.markdown('<div class="section-head"><h3>🧠 Smart Substitution Engine</h3>'
-                    'Manages daily absences with priority-based, constraint-aware candidate selection.'
-                    '</div>', unsafe_allow_html=True)
-
-        st.info("ℹ️ Substitution feature will be available in the next update. "
-                "Please use the Timetable Generator tab to create your timetable first.")
+    st.markdown('<div class="section-head"><h3>🧠 Smart Substitution Engine</h3></div>', unsafe_allow_html=True)
+    st.info("ℹ️ The Smart Substitution feature will be available in the next update. Please generate a timetable first using the Timetable Generator tab.")
