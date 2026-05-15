@@ -711,7 +711,7 @@ def render_class_grid(cs_key, timetable):
 
     return f"""<table style="width:100%;border-collapse:collapse;font-size:13px">
 <thead style="background:#006666;color:white">{header}</thead>
-<tbody>{rows_html}</tbody></table>"
+<tbody>{rows_html}</tbody></table>"""
 
 # ============================================================
 # TAB 5 — TIMETABLE GENERATOR
@@ -1069,7 +1069,7 @@ with tab4:
                         cls_num = int(cs_key[:-1])
                         period_time = get_time(cls_num, absent_day, period)
 
-                        st.markdown(f"---")
+                        st.markdown("---")
                         st.markdown(f"#### 🕒 {period} ({period_time}) — "
                                     f"Class **{cs_key}** — *{subject}*")
 
